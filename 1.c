@@ -1,26 +1,25 @@
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-
-// Preprocessor macro to find length of an Array. Must be used in block where declared so array doesn't degrade
-// to pointers
-#define length(n) (sizeof(n) / sizeof(n[0]))
 // Find the contiguous sub array which has the largest sum and return its sum. This array may contain negative numbers.
 // I understand a subarray to be a continuous sequence of elements from the source array
-// I assum that an empty array is a valid subarray
 
-// int length(void *elems[])
-// {
-//     return sizeof(*elems[0]) / sizeof(elems);
-// }
+#include <limits.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
 
-// Variadic function to be cute
+// Preprocessor macro to find length of an Array.
+// Must be used in block where declared so array doesn't degrade to pointers
+#define length(n) (sizeof(n) / sizeof(n[0]))
+
+int max(int count, ...);
+int _maxSubArray(int nums[], int startIdx, int endIdxInclusive, bool isCheckingFromMidpoint);
+int maxSubArray(int nums[], int startIdx, int endIdxInclusive);
+
+// Variadic function that takes a count followed by a variable number of integers equal to count
+// Returns the max int
 int max(int count, ...)
 {
     va_list args;
-    int val, max = 0;
+    int val, max = INT_MIN;
     va_start(args, count);
     for (int i = 0; i < count; i++)
     {
@@ -31,92 +30,61 @@ int max(int count, ...)
     return max;
 }
 
-int sum(int nums[], int startIdx, int endIdxInclusive)
+int _maxSubArray(int nums[], int startIdx, int endIdxInclusive, bool isCheckingFromMidpoint)
 {
-    char buffer[100] = "";
-    char temp[100] = "";
-    strcat(buffer, "For {");
-    for (int i = startIdx; i <= endIdxInclusive; i++)
+    if (startIdx == endIdxInclusive) // One element
     {
-        snprintf(temp, 100, "%d, ", nums[i]);
-        strcat(buffer, temp);
-    }
-    int sum = 0;
-    for (int i = startIdx; i <= endIdxInclusive; i++)
-    {
-        sum += nums[i];
-    }
-    strcat(buffer, "}, sum is ");
-    snprintf(temp, 100, "%d", sum);
-    strcat(buffer, temp);
-    strcat(buffer, "\n");
-    printf(buffer);
-    return sum;
-}
-
-// Due to preprocessing, we should be guaranteed to have an odd number of elements with positive numbers in the first
-// and last positions. This allows us to recursively 
-int _maxSubArray(int nums[], int startIdx, int endIdxInclusive)
-{
-    char buffer[100] = "";
-    char temp[100] = "";
-    strcat(buffer, "For {");
-    for (int i = startIdx; i <= endIdxInclusive; i++)
-    {
-        snprintf(temp, 100, "%d, ", nums[i]);
-        strcat(buffer, temp);
-    }
-    if (endIdxInclusive == startIdx)
-    {
-
-        strcat(buffer, "}, max is ");
-        snprintf(temp, 100, "%d", nums[startIdx]);
-        strcat(buffer, temp);
-        strcat(buffer, "\n");
-        printf(buffer);
         return nums[startIdx];
     }
-    int result = max(3, _maxSubArray(nums, startIdx, midpoint), _maxSubArray(nums, midpoint + 1, endIdxInclusive), sum(nums, startIdx, endIdxInclusive - 1));
-    snprintf(temp, 100, " }, the max is %d\n", result);
-    strcat(buffer, temp);
-    printf(buffer);
-    return result;
+    else if (startIdx + 1 == endIdxInclusive) // Two elements
+    {
+        return max(2, _maxSubArray(nums, startIdx, startIdx, false),
+                   _maxSubArray(nums, endIdxInclusive, endIdxInclusive, false));
+    }
+    else if (isCheckingFromMidpoint) // Checking the middle of three or more
+    {
+        int midpoint = (endIdxInclusive + 1 - startIdx) / 2;
+        int maxLeft = INT_MIN;
+        int maxRight = INT_MIN;
+        int buffer = 0;
+
+        // Find the best left
+        for (int i = midpoint; i >= startIdx; i--)
+        {
+            buffer += nums[i];
+            maxLeft = buffer > maxLeft ? buffer : maxLeft;
+        }
+
+        // Find the best right
+        buffer = 0;
+        for (int i = midpoint + 1; i <= endIdxInclusive; i++)
+        {
+            buffer += nums[i];
+            maxRight = buffer > maxRight ? buffer : maxRight;
+        }
+
+        return maxLeft + maxRight;
+    }
+    else // Divide and Conquer of three or more
+    {
+        int midpoint = startIdx + (endIdxInclusive + 1 - startIdx) / 2;
+        return max(3,
+                   _maxSubArray(nums, startIdx, midpoint - 1, false),
+                   _maxSubArray(nums, startIdx, endIdxInclusive, true),
+                   _maxSubArray(nums, midpoint, endIdxInclusive, false));
+    }
 }
 
+// I need to pass indices because the function loses state about the length of the array when passed as an arg
+// I abstract my kludgey flag on the external API to be close to the original spirit of the problem
 int maxSubArray(int nums[], int startIdx, int endIdxInclusive)
 {
-    // We do some initial preprocessing to ensure that positive and negative numbers alternate
-    // for the divide and conquer portion
-    int simplifiedNums[endIdxInclusive - startIdx];
-    int simplifiedNumsLength = 0;
-    int accumulator = 0;
-    bool isPos = true;
-    for (int i = startIdx; i <= endIdxInclusive; i++)
-    {
-        // We would never include leading or trailing negatives, so drop them
-        if (nums[i] == 0 || (i == 0 || i == endIdxInclusive) && nums[i] <= 0)
-        {
-            continue;
-        }
-        else if (nums[i] > 0 == isPos)
-        {
-            accumulator += nums[i];
-        }
-        else
-        {
-            simplifiedNums[simplifiedNumsLength] = accumulator;
-            simplifiedNumsLength++;
-            accumulator = 0;
-            isPos = !isPos;
-            accumulator += nums[i];
-        }
-    }
-    return _maxSubArray(simplifiedNums, 0, simplifiedNumsLength - 1);
+    return _maxSubArray(nums, startIdx, endIdxInclusive, false);
 }
 
 int main(int argc, char *argv[])
 {
-    int test[] = {3, 1, 8, -12, 4, 32, -99, 12};
+    int test[] = {4, 1, 8, -12, 4, 32, -99, 12};
     // int test[] = {2, 3, 4, 5, 7};
-    printf("The size of the arr is %d", maxSubArray(test, 0, length(test) - 1));
+    printf("The sum of the max sub array is %d", maxSubArray(test, 0, length(test) - 1));
 }
