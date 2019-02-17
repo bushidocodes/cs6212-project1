@@ -1,61 +1,74 @@
+// Find the kth largest number in an unsorted array.
+// int findKthLargest(int[] nums, int k){}
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <time.h>
 
-int compare_ints(const void *p, const void *q)
+int _findKthLargest(int nums[], int count, int k)
 {
-    int x = *(const int *)p;
-    int y = *(const int *)q;
-    if (x < y)
-        return -1; // Return -1 if you want ascending, 1 if you want descending order.
-    else if (x > y)
-        return 1; // Return 1 if you want ascending, -1 if you want descending order.
-    return 0;
-}
-
-int _findKthLargest(int nums[], int startIdx, int endIdxInclusive, int k)
-{
-    int count = endIdxInclusive - startIdx + 1;
-    printf("%d - %d - %d\n", startIdx, endIdxInclusive, k);
-    if (count < k)
+    // Pick a random element to act as a pivot
+    int pivotIdx = rand() % (count);
+    int pivot = nums[pivotIdx]; /* This is technically not cryptographically secure, but I assume this is not important here */
+    // Partition
+    int left[count];
+    int leftLength = 0;
+    int right[count];
+    int rightLength = 0;
+    for (int i = 0; i < count; i++)
     {
-        printf("%d < k of %d\n", count, k);
-        return INT_MIN;
-    }
-    else if (count <= 2 * k)
-    {
-        printf("%d <= 2k of %d\n", count, 2 * k);
-        int temp[count];
-        memcpy(temp, &nums[startIdx], count * sizeof(*nums));
-        // Maybe this should be insertion sort or something simple?
-        qsort(temp, endIdxInclusive - startIdx + 1, sizeof(int), &compare_ints);
-        return nums[k - 1];
-    }
-    else
-    {
-        int results[count / k];
-
-        for (int i = startIdx; i < endIdxInclusive - k; i += k)
+        if (nums[i] <= pivot)
         {
-            // printf("%d && %d\n", i, i < endIdxInclusive - 2 * k ? i + k : count - 1);
-            // results[i] = _findKthLargest(nums, i, i + k, k);
-            results[i] = _findKthLargest(nums, i, i < endIdxInclusive - 2 * k ? i + k : count - 1, k);
-            printf("Result is %d\n", results[i]);
+            left[leftLength] = nums[i];
+            leftLength++;
         }
-        return _findKthLargest(results, 0, sizeof(results) / sizeof(results[0]), k);
+        else if (nums[i] > pivot)
+        {
+            right[rightLength] = nums[i];
+            rightLength++;
+        }
+    }
+    if (rightLength < k - 1) /* We got unlucky, and the kth is in the left side, so search the left side, reducing by the magnitude of the union of the pivot and the right side */
+    {
+        return _findKthLargest(left, leftLength, k - rightLength);
+    }
+    // if the right partion is one less than k, we got lucky and our partition is the kth
+    else if (rightLength == k - 1)
+    {
+        return pivot;
+    }
+    else if (rightLength < 2 * k) // Not enough to partition, just use insertion sort and return kth
+    {
+        int i, key, j;
+        for (i = 0; i < rightLength; i++)
+        {
+            key = right[i];
+            j = i - 1;
+            while (j >= 0 && right[j] < key)
+            {
+                right[j + 1] = right[j];
+                j = j - 1;
+            }
+            right[j + 1] = key;
+        }
+        return right[k - 1];
+    }
+    else /* right has 2k or more */
+    {
+        return _findKthLargest(right, rightLength, k);
     }
 }
 
-// Find the kth largest number in an unsorted array.
-int findKthLargest(int count, int nums[], int k)
+int findKthLargest(int nums[], int count, int k)
 {
-    return _findKthLargest(nums, 0, count - 1, k);
-    // return 9;
-};
+    srand(time(NULL)); // Initialization, should only be called once.
+    return _findKthLargest(nums, count, k);
+}
 
 int main(int argc, char *argv[])
 {
     int test[] = {2, 4, 6, 7, 8, 34, 7, 2, 4, 543, 3, 1, -56, 3242, -9, 45, 2, 3, 4, 65, 7, 43, 76, 14, 4, 14, 76};
-    printf("K is %d\n", findKthLargest(sizeof(test) / sizeof(test[0]), test, 3));
+    int k = 3;
+    printf("Term %d is %d\n", k, findKthLargest(test, sizeof(test) / sizeof(test[0]), k));
 }
